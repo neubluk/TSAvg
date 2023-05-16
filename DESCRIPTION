@@ -1,0 +1,16 @@
+Package: TSAvg
+Title: Time Series Averaging for Forecasting
+Version: 0.0.1
+Authors@R: 
+    person("Lukas", "Neubauer", , "lukas.neubauer@tuwien.ac.at", role = c("aut", "cre"))
+Description: What the package does (one paragraph).
+License: `use_mit_license()`
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Imports: 
+  dtw
+Suggests:
+  ggplot2,
+  reshape2
+License: GPL-3
