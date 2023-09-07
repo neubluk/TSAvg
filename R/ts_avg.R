@@ -191,7 +191,7 @@ plot.ts_avg <- function(object, plot_type=c("response","error"), h=1){
     fc_df <- cbind(avg_type=object$type,
                    forecast = TRUE,
                    as.data.frame(do.call(
-                     rbind, sapply(seq_along(x), function(i) {
+                     rbind, sapply(seq_along(object$data), function(i) {
                        fc <- if (is.null(object$xtest_idx)) {
                          matrix(object$forecasts[[i]], ncol = ncol(object$forecasts[[i]]))
                        }
