@@ -176,7 +176,8 @@ plot.ts_avg <- function(object, plot_type=c("response","error"), h=1){
                   forecast = FALSE,
                   as.data.frame(do.call(
                     rbind, sapply(seq_along(object$data), function(i)
-                      cbind(id = i, fc_idx = NA, object$data[[i]]))
+                      cbind(id = i, fc_idx = NA, object$data[[i]]),
+                      simplify=FALSE)
                   )))
 
     h_plot <- if (object$h == 1) {
