@@ -108,7 +108,10 @@ ts_avg <- function(x,
   }
 
   if (is.null(xtest_idx)){
-    result <- lapply(result, "[",1,TRUE,TRUE,drop=FALSE)
+    #result <- lapply(result, "[",1,TRUE,TRUE)
+    result <- lapply(result, function(r){
+      matrix(r[1, , ],ncol=dim(r)[3])
+    })
     cum_test_errors <- test_errors <- NULL
   }
   else {
