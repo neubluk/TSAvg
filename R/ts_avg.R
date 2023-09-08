@@ -1,3 +1,5 @@
+#' @include misc.R
+
 #' ts_avg
 #'
 #' Perform TS Avg Forecasting for a particular type
