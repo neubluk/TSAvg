@@ -1,4 +1,5 @@
 #' @include misc.R
+NULL
 
 #' ts_avg
 #'
