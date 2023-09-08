@@ -1,6 +1,3 @@
-#' @include misc.R
-NULL
-
 #' ts_avg
 #'
 #' Perform TS Avg Forecasting for a particular type
@@ -213,7 +210,8 @@ plot.ts_avg <- function(object, plot_type=c("response","error"), h=1){
     colnames(plot_df)[1:5] <- c("avg_type", "forecast", "id", "fc_idx", "index")
     colnames(plot_df)[-(1:5)] <- paste0("V", 1:(ncol(plot_df) - 5))
 
-    plot_res(plot_df, h_plot)
+    #plot_res(plot_df, h_plot)
+    get("plot_res",envir = getNamespace("TSAvg"))(plot_df, h_plot)
   }
   else if (plot_type == "error"){
     error_df <- as.data.frame(cbind(1:length(object$test_errors), do.call(rbind,object$test_errors)[,h]))
