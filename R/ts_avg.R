@@ -108,7 +108,7 @@ ts_avg <- function(x,
   }
 
   if (is.null(xtest_idx)){
-    result <- lapply(result, "[",1,TRUE,TRUE)
+    result <- lapply(result, "[",1,TRUE,TRUE,drop=FALSE)
     cum_test_errors <- test_errors <- NULL
   }
   else {
