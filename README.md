@@ -1,25 +1,24 @@
-TSAvg 
-======================
+# TSAvg
 
 [![Licence](https://img.shields.io/badge/licence-GPL--3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
-This R package features the essential functions from Neubauer and Filzmoser (2023). Exported functions are
+This R package features the essential functions from [Neubauer and Filzmoser (2023)](<https://arxiv.org/abs/2306.07119>). Exported functions are
 
-- `ts_avg`: performs TS Averaging for forecasting
-- `ts_avg.cv`: performs TSCV for selecting the optimal number of neighbors per time series, and yields the best models.
+-   `ts_avg`: performs TS Averaging for forecasting
+-   `ts_avg.cv`: performs TSCV for selecting the optimal number of neighbors per time series, and yields the best models.
 
 ## Installation
 
-```s
+``` s
 # install.packages("remotes")
 remotes::install_github("neubluk/TSAvg")
 ```
 
-## Usage 
+## Usage
 
 The functionality requires a model as in `my_ets.R` which yields an object with `forecast`, `refit`, `fitted`, and `residuals` functions.
 
-```s
+``` s
 source("inst/my_ets.R")
 
 x <- replicate(5,{
