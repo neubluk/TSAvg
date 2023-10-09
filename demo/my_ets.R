@@ -45,7 +45,6 @@ refit.my_ets <- function(object, ynew, ...){
       forecast::ets(ynew[,i], model = tmp, use.initial.values = FALSE, ...)
     },
     error=function(e){
-      warning(e)
       return(NULL)
     })
   }, simplify=FALSE)
