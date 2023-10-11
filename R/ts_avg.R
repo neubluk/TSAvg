@@ -36,6 +36,7 @@ ts_avg <- function(x,
                    test_multistep=FALSE,
                    benchmark=c("rw","model"),
                    detailed_result=FALSE,
+                   execution_time=FALSE,
                    ...){
   stopifnot(all(lapply(x,ncol)>1))
 
@@ -43,6 +44,10 @@ ts_avg <- function(x,
   benchmark <- match.arg(benchmark)
 
   avg_fn <- get(paste(type,"fn",sep="_"), envir = getNamespace("TSAvg"))
+
+  if (execution_time){
+    start_time <- Sys.time()
+  }
 
   if (!is.null(xtest_idx)){
 
@@ -203,28 +208,26 @@ ts_avg <- function(x,
     }, simplify=FALSE)
   }
 
+  if (execution_time){
+    time_needed <- as.numeric(Sys.time() - start_time,"secs")
+  }
 
-  res <- if (detailed_result){
-    list(data = x,
+  res <- list(data = x,
               type = type,
+              k=k,
               forecasts = result,
               h=h,
               test_multistep=test_multistep,
               xtest_idx=xtest_idx,
               test_errors = test_errors,
-              cum_test_errors = cum_test_errors,
-              neighbors = neighbors)
+              cum_test_errors = cum_test_errors)
+
+  if (detailed_result){
+    res <- c(res, list(neighbors = neighbors))
   }
-  else{
-    list(data = x,
-         type = type,
-         k=k,
-         forecasts = result,
-         h=h,
-         test_multistep=test_multistep,
-         xtest_idx=xtest_idx,
-         test_errors = test_errors,
-         cum_test_errors = cum_test_errors)
+
+  if (execution_time){
+    res <- c(res, list(exec_time = time_needed))
   }
 
   attr(res,"class") <- "ts_avg"
@@ -341,19 +344,36 @@ plot.ts_avg <- function(object, plot_type=c("response","error","error_quants"), 
     # }
 
     if (is.null(ref_plot)){
-      p <- ggplot2::ggplot(error_df, ggplot2::aes(x=q,y=rmsse, group=1,color=interaction(type)))+
-      ggplot2::geom_step()+
-      ggplot2::geom_hline(yintercept=1,linetype="dashed")+
-      ggplot2::geom_vline(ggplot2::aes(xintercept=max(q[rmsse<1])))+
-      ggplot2::scale_x_continuous(name="Percentiles", breaks=(1:10)/10)
+      p <-
+        ggplot2::ggplot(error_df,
+                        ggplot2::aes(
+                          x = q,
+                          y = rmsse,
+                          #group = 1,
+                          color = interaction(type, round(mean_k, 1),sep=", ")
+                        )) +
+        ggplot2::geom_step() +
+        ggplot2::geom_hline(yintercept = 1, linetype = "dashed") +
+        ggplot2::geom_vline(ggplot2::aes(xintercept = max(q[rmsse < 1]))) +
+        ggplot2::scale_x_continuous(name = "Percentiles", breaks = (1:10) / 10) +
+        ggplot2::scale_color_discrete("Type, Avg. k")
+
     }
     else {
       error_df <- rbind(p$data, error_df)
-      p <- ggplot2::ggplot(error_df, ggplot2::aes(x=q,y=rmsse, group=1,color=interaction(type,mean_k)))+
-        ggplot2::geom_step()+
-        ggplot2::geom_hline(yintercept=1,linetype="dashed")+
-        ggplot2::geom_vline(data=error_df,ggplot2::aes(xintercept=max(q[rmsse<1])))+
-        ggplot2::scale_x_continuous(name="Percentiles", breaks=(1:10)/10)
+      p <-
+        ggplot2::ggplot(error_df,
+                        ggplot2::aes(
+                          x = q,
+                          y = rmsse,
+                          #group = 1,
+                          color = interaction(type, round(mean_k, 1), sep=", ")
+                        )) +
+        ggplot2::geom_step() +
+        ggplot2::geom_hline(yintercept = 1, linetype = "dashed") +
+        ggplot2::geom_vline(data = error_df, ggplot2::aes(xintercept = max(q[rmsse < 1]))) +
+        ggplot2::scale_x_continuous(name = "Percentiles", breaks = (1:10) / 10)+
+        ggplot2::scale_color_discrete("Type, Avg. k")
     }
     return(p)
   }

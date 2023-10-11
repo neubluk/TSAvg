@@ -70,9 +70,11 @@ ts_avg.cv <-
   `%dopar%` <- foreach::`%dopar%`
   `%:%` <- foreach::`%:%`
 
+  start_time <- Sys.time()
   cv_result <-
     foreach::foreach(j = seq_along(k_grid)) %:%
     foreach::foreach(i = seq_along(type), .combine = 'cbind') %dopar% {
+      exec_times <- numeric()
       for (l in seq_along(timesteps)) {
         x_train <- sapply(seq_along(x), function(m)
           x[[m]][x[[m]][, 1] < min(timesteps[l],xtest_idx[m]), , drop=FALSE],
@@ -83,13 +85,12 @@ ts_avg.cv <-
 
           x[[m]][x[[m]][, 1] >= timesteps[l] - l + 1 & x[[m]][, 1] <= timesteps[l], , drop = FALSE]
         }, simplify = FALSE)
-
         x_train_lengths <- unlist(lapply(x_train,nrow))
 
         result[x_train_lengths <= 1, l, , i, j] <- NA
         if (verbose) message(sprintf("Performing avg. type %s with k=%d up to index %d",type[i],k_grid[j],timesteps[l]))
-        result_fc <- ts_avg(x_train[x_train_lengths>1], model, k_grid[j], h=1, type[i], xtest_idx = NULL, ...)
-
+        result_fc <- ts_avg(x_train[x_train_lengths>1], model, k_grid[j], h=1, type[i], xtest_idx = NULL, execution_time = TRUE, ...)
+        exec_times <- c(exec_times, result_fc$exec_time)
         for (m in which(x_train_lengths>1)){
           if (max(x[[m]][, 1]) >= timesteps[l] && !is.null(x_test[[m]])) {
             result[m, l, , i, j] <- result_fc$forecasts[[which(which(x_train_lengths > 1) == m)]]
@@ -103,30 +104,35 @@ ts_avg.cv <-
       #cv_ses[, i, j] <- apply(rmsses[, , , i, j, drop=FALSE], 1, function(z) sd(z,na.rm = TRUE)/sqrt(sum(!is.na(z))))
 
       list( score=apply(rmsses[, , , i, j, drop=FALSE], 1, mean, na.rm = TRUE),
-            se=apply(rmsses[, , , i, j, drop=FALSE], 1, function(z) sd(z,na.rm = TRUE)/sqrt(sum(!is.na(z)))) )
+            se=apply(rmsses[, , , i, j, drop=FALSE], 1, function(z) sd(z,na.rm = TRUE)/sqrt(sum(!is.na(z)))),
+            exec_times = mean(exec_times))
 
     }
+
+  exec_time <- as.numeric(Sys.time() - start_time, "secs")
 
   if (is.numeric(parallel) && parallel > 0){
     doParallel::stopImplicitCluster()
   }
 
-  cv_scores <- array(unlist(lapply(cv_result, function(t)t[seq(1,by=2,length.out=length(type))])),
+  cv_scores <- array(unlist(lapply(cv_result, function(t)t[seq(1,by=3,length.out=length(type))])),
                     dim=c(length(x),length(type),length(k_grid)),
                     dimnames=list(id=seq_along(x),type=type,k=k_grid))
 
-  cv_ses <- array(unlist(lapply(cv_result, function(t)t[seq(2,by=2,length.out=length(type))])),
+  cv_ses <- array(unlist(lapply(cv_result, function(t)t[seq(2,by=3,length.out=length(type))])),
                   dim=c(length(x),length(type),length(k_grid)),
                   dimnames=list(id=seq_along(x),type=type,k=k_grid))
+
+  exec_times <- matrix(unlist(lapply(cv_result, function(t) t[seq(3,by=3,length.out=length(type))])),
+                       nrow = length(type),
+                       ncol = length(k_grid),
+                       dimnames = list(type,k_grid))
 
   best_idx <- apply(cv_scores,1:2,function(z){
     if (all(is.na(z))) return(0)
     which.min(z)
   })
-  # best_idx_se <- apply(cv_scores <= array((cv_scores+cv_ses)[best_idx],dim=c(length(x),length(type),length(k_grid))),1:2,function(z){
-  #   if (all(is.na(z)) | all(!(z))) return(NA)
-  #   min(which(z))
-  # })
+
   best_idx_se <- apply(expand.grid(dimnames(best_idx)),
                        1,
                        function(z) min(which( cv_scores[z[1],z[2],] <= (cv_scores+cv_ses)[z[1],z[2],best_idx[z[1],z[2]]])))
@@ -148,24 +154,16 @@ ts_avg.cv <-
 
   names(best_result) <- type
 
-  # final_best_models <- list()
-  # if (!is.null(xtest_idx)) {
-  #   best_models <-
-  #     apply(simplify2array(lapply(best_result, '[[', 'test_errors')), 1, which.min)
-  #   for (i in seq_along(x)) {
-  #     final_best_models <-
-  #       c(final_best_models, best_result[best_models[i]])
-  #   }
-  # }
-
-  best_type <- which.min(lapply(best_result,function(br)mean(unlist(br$test_errors))))
+  best_type <- which.min(lapply(best_result,function(br)mean(unlist(br$test_errors), na.rm=TRUE)))
   final_model <- best_result[[best_type]]
 
   res <- list(best_result=best_result,
               best_k=best_k,
               final_model = final_model,
               cv_results=list(scores=cv_scores,
-                              se=cv_ses))
+                              se=cv_ses),
+              exec_times=exec_times,
+              total_exec_time=exec_time)
   attr(res,"class") <- "ts_avg.cv"
 
   return(res)
