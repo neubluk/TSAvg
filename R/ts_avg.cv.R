@@ -17,10 +17,12 @@
 #' @param ... additional parameters for model function
 #' @return object of class ts_avg.cv containing
 #' \itemize{
-#'  \item best_result for each avg. type,
-#' \item best_k for each avg. type,
+#' \item best_result for each avg. type
+#' \item best_k for each avg. type
 #' \item final_model
 #' \item cv_results (scores and standard errors)
+#' \item exec_times for each type and k
+#' \item total_exec_time
 #' }
 #' @example demo/demo.R
 #' @seealso [plot.ts_avg.cv]

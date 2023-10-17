@@ -10,18 +10,20 @@
 #' @param test_multistep if TRUE, then multistep-ahead forecasts are performed on test set.
 #' @param benchmark benchmark forecast type for computing the errors. either random walk forecast "rw" or model forecast "model".
 #' @param detailed_result if TRUE, a more detailed result object is returned.
+#' @param execution_time if TRUE, also return execution time.
 #' @param ... additional parameters for model function
 #' @return object of class ts_avg containing
 #' \itemize{
 #'  \item data
-#'  \item type,
-#'  \item forecasts,
-#'  \item h,
-#'  \item test_multistep,
-#'  \item xtest_idx,
-#'  \item test_errors,
-#'  \item cum_test_errors,
+#'  \item type
+#'  \item forecasts
+#'  \item h
+#'  \item test_multistep
+#'  \item xtest_idx
+#'  \item test_errors
+#'  \item cum_test_errors
 #'  \item neighbors (if detailed_result is TRUE)
+#'  \item exec_time (if execution_time is TRUE)
 #' }
 #' @example demo/demo.R
 #' @seealso [plot.ts_avg]
