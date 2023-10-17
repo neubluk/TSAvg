@@ -3,14 +3,15 @@ Title: Time Series Averaging for Forecasting
 Version: 0.0.1
 Authors@R: 
     person("Lukas", "Neubauer", , "lukas.neubauer@tuwien.ac.at", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`
+Description: Time Series Averaging for Improving Forecasts using DTW.
+License: GPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
 Imports: 
-  dtw
-Suggests:
+  dtw,
+  foreach,
   ggplot2,
-  reshape2
-License: GPL-3
+  reshape2,
+  doParallel
+  

@@ -45,7 +45,6 @@ refit.my_ets <- function(object, ynew, ...){
       forecast::ets(ynew[,i], model = tmp, use.initial.values = FALSE, ...)
     },
     error=function(e){
-      warning(e)
       return(NULL)
     })
   }, simplify=FALSE)
@@ -65,16 +64,16 @@ fitted.my_ets <- function(object,h=1){
   return(do.call(cbind, lapply(object, function(o) {
     tmp <- o
     attr(tmp, "class") <- "ets"
-    return(matrix(fitted(tmp, h = h),ncol=1))
+    return(matrix(as.numeric(fitted(tmp, h = h)),ncol=1))
   })))
 
 }
 
-residuals.my_ets <- function(object,...){
+residuals.my_ets <- function(object){
   if (attr(object,"failed")) return(NA)
   return(do.call(cbind, lapply(object, function(o) {
     tmp <- o
     attr(tmp, "class") <- "ets"
-    return(matrix(residuals(tmp, type="response"),ncol=1))
+    return(matrix(as.numeric(residuals(tmp, type="response")),ncol=1))
   })))
 }

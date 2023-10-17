@@ -5,9 +5,9 @@ rmsse <- function(y, yhat, benchmark=rw(y), scaling=NULL, cumulative=FALSE){
   else {
     matrix(scaling,ncol=ncol(y)-1,nrow=nrow(y),byrow = TRUE)
   }
-  
+
   scaled_errors <- cbind(y[,1],(y-yhat)[,-1,drop=FALSE]/scaling_benchmark)
-  
+
   if (cumulative) {
     return(sapply(1:nrow(y), function(i) mean(rmse(scaled_errors[1:i, , drop=FALSE],0))))
   }
@@ -45,11 +45,11 @@ plot_res <- function(plot_df, h){
   else {
     p <- ggplot2::ggplot(data = plot_df, ggplot2::aes(x = index, y = V1))
   }
-  
+
   p +
     ggplot2::geom_line(ggplot2::aes(color = avg_type)) +
     ggplot2::geom_point(ggplot2::aes(shape = forecast, color=avg_type)) +
     ggplot2::facet_wrap( ~ id, ncol = 4, scales = "free") +
     ggplot2::geom_vline(ggplot2::aes(xintercept = fc_idx), linetype = "dotted") +
-    ggplot2::ggtitle(sprintf("Horizon = %d", h))
+    ggplot2::ggtitle(sprintf("Horizon = %s", h))
 }
