@@ -1,8 +1,6 @@
-
-source("my_ets.R")
-
 library(doParallel)
 library(tidyverse)
+library(TSAvg)
 
 error_measures <- function(a,f){
   return(c(
@@ -83,7 +81,7 @@ test_idx <- unlist(lapply(tourism, function(ts) {
 datasets <- c(datasets, list(TOURISM = tibble(data, test_idx, min_ts=0.8*length(all_dates))))
 
 # CIF 2016
-cif2016 <- readRDS("data/cif2016.rds")
+data("cif2016")
 cif2016_processed <- cif2016[[1]] %>%
   group_by(series_name) %>%
   mutate(length = n()) %>%
@@ -102,90 +100,156 @@ datasets <- c(datasets, list(CIF2016 = cif2016_processed))
 
 hospital <- tibble(data=apply(expsmooth::hospital,2,function(col)cbind(1:nrow(expsmooth::hospital),col,deparse.level = 0),simplify=FALSE),
                    test_idx = 73,
-                   min_ts = round(0.8*84))
+                   min_ts = round(0.8*73))
 
 datasets <- c(datasets, list(HOSPITAL = hospital))
 
+# Food Demand Data
+
+data("food_demand")
+food_demand_data <- food_demand %>%
+  group_by(fridge_id) %>%
+  summarise(data=list(cbind(index,sold)),
+            min_ts=27,
+            test_idx=81)
+
+datasets <- c(datasets, list(FOOD_DEMAND = food_demand_data))
 
 # experiment ----
-result <- list()
-i<-1
+source("demo/my_ets.R")
 model <- list(model = my_ets,
               forecast = forecast.my_ets,
               refit = refit.my_ets,
               fitted = fitted.my_ets,
               residuals = residuals.my_ets)
+types <- c(
+  "simple_avg",
+  "simple_avg_n",
+  "dist_avg_n",
+  "dist_avg",
+  "global_avg",
+  "perf_avg",
+  "perf_avg_r"
+)
+
+nr_cores <- 4
+result <- list()
+i <- 1
 for (ds in datasets) {
-  res_cv  <-
-    ts_avg.cv(
-      ds$data,
-      model,
-      xtest_idx = ds$test_idx,
-      min_ts = unique(ds$min_ts),
-      type = c("simple_avg","simple_avg_n", "dist_avg_n", "dist_avg","global_avg","perf_avg","perf_avg_r"),
-      c(1, 5, 10, 20),
-      test_multistep = TRUE,
-      parallel = 6,
-      benchmark = "model"
+  job::job({
+    res_cv  <-
+      ts_avg.cv(
+        ds$data,
+        model,
+        xtest_idx = ds$test_idx,
+        min_ts = unique(ds$min_ts),
+        type = types,
+        c(1, 5, 10, 20),
+        test_multistep = FALSE,
+        parallel = nr_cores,
+        benchmark = "model"
+      )
+
+    best_result_onestep <- lapply(types, function(t) {
+      ts_avg(
+        ds$data,
+        model,
+        res_cv$best_k[, t],
+        h = 1,
+        type = t,
+        xtest_idx = ds$test_idx,
+        benchmark = "model",
+        test_multistep = TRUE
+      )
+    })
+
+    names(best_result_onestep) <- types
+
+    best_type_onestep <- which.min(lapply(best_result_onestep,function(br)mean(unlist(br$test_errors))))
+    final_model_onestep <- best_result_onestep[[best_type_onestep]]
+
+    eval_multistep <- ds %>%
+      ungroup() %>%
+      mutate(tsavg = lapply(res_cv$final_model$forecasts, function(f)
+        f[1, -dim(f)[2], 2])) %>%
+      rowwise() %>%
+      mutate(ets = list({
+        m_ets <- forecast::ets(data[data[, 1] < test_idx, 2])
+        as.numeric(forecast::forecast(m_ets, h = max(data[, 1]) - test_idx +
+                                        1)$mean)
+      }),
+      arima = list({
+        m_arima <- forecast::auto.arima(data[data[, 1] < test_idx, 2])
+        as.numeric(forecast::forecast(m_arima, h = max(data[, 1]) - test_idx +
+                                        1)$mean)
+      })) %>%
+      pivot_longer(c(tsavg, ets, arima), names_to = "model") %>%
+      rowwise() %>%
+      mutate(err = list(error_measures(data[data[, 1] >= test_idx, 2], as.numeric(value)))) %>%
+      unnest_wider(err)
+
+    eval_onestep <- ds %>%
+      ungroup() %>%
+      mutate(tsavg = lapply(final_model_onestep$forecasts, function(f)
+        f[-dim(f)[1], 1, 2])) %>%
+      rowwise() %>%
+      mutate(ets = list({
+        sapply(test_idx:max(data[, 1]), function(ind) {
+          m_ets <- forecast::ets(data[data[, 1] < ind, 2])
+          as.numeric(forecast::forecast(m_ets, h = 1)$mean)
+        })
+      }),
+      arima = list({
+        sapply(test_idx:max(data[, 1]), function(ind) {
+          m_arima <- forecast::auto.arima(data[data[, 1] < ind, 2])
+          as.numeric(forecast::forecast(m_arima, h = 1)$mean)
+        })
+      })) %>%
+      pivot_longer(c(tsavg, ets, arima), names_to = "model") %>%
+      rowwise() %>%
+      mutate(err = list(error_measures(data[data[, 1] >= test_idx, 2], as.numeric(value)))) %>%
+      unnest_wider(err)
+
+    saveRDS(
+      list(
+        res_multistep = res_cv,
+        res_onestep = final_model_onestep,
+        eval_multistep = eval_multistep,
+        eval_onestep = eval_onestep
+      ),
+      file = sprintf("./%s.rds", names(datasets)[i])
     )
 
-  res_best_onestep <- ts_avg(
-    ds$data,
-    model,
-    k = res_cv$final_model$k,
-    type = res_cv$final_model$type,
-    xtest_idx = ds$test_idx,
-    benchmark = "model",
-    test_multistep = FALSE
-  )
-
-  eval_multistep <- ds %>%
-    ungroup() %>%
-    mutate(tsavg = lapply(res_cv$final_model$forecasts,function(f)f[1,-dim(f)[2],2])) %>%
-    rowwise() %>%
-    mutate(ets = list({
-      m_ets <- forecast::ets(data[data[,1]<test_idx,2])
-      as.numeric(forecast::forecast(m_ets,h=max(data[,1])-test_idx+1)$mean)
-    }),
-    arima = list({
-      m_arima <- forecast::auto.arima(data[data[,1]<test_idx,2])
-      as.numeric(forecast::forecast(m_arima,h=max(data[,1])-test_idx+1)$mean)
-    })) %>%
-    pivot_longer(c(tsavg, ets, arima), names_to="model") %>%
-    rowwise() %>%
-    mutate(err=list(error_measures(data[data[,1]>=test_idx,2],as.numeric(value)))) %>%
-    unnest_wider(err)
-
-  eval_onestep <- ds %>%
-    ungroup() %>%
-    mutate(tsavg = lapply(res_best_onestep$forecasts,function(f)f[-dim(f)[1],1,2])) %>%
-    rowwise() %>%
-    mutate(ets = list({
-      sapply(test_idx:max(data[,1]),function(ind){
-        m_ets <- forecast::ets(data[data[,1]<ind,2])
-        as.numeric(forecast::forecast(m_ets,h=1)$mean)
-      })
-    }),
-    arima = list({
-      sapply(test_idx:max(data[, 1]), function(ind) {
-        m_arima <- forecast::auto.arima(data[data[, 1] < ind, 2])
-        as.numeric(forecast::forecast(m_arima, h = 1)$mean)
-      })
-    })) %>%
-    pivot_longer(c(tsavg, ets, arima), names_to="model") %>%
-    rowwise() %>%
-    mutate(err=list(error_measures(data[data[,1]>=test_idx,2],as.numeric(value)))) %>%
-    unnest_wider(err)
-
-
-  result <- c(result, list(res_multistep = res_cv$final_model,
-                           res_onestep = res_best_onestep,
-                           eval_multistep = eval_multistep,
-                           eval_onestep = eval_onestep))
+    job::export("none")
+  },
+  title=names(datasets)[i],
+  import="all")
   message(sprintf("subset %d/%d finished", i,length(datasets)))
   i<-i+1
 }
 
-names(result) <- names(datasets)
 
-saveRDS(result,file="./result_datasets.rds")
+
+# ids <- c(3,14,25,27)
+#
+res_cv  <-
+  ts_avg.cv(
+    food_demand_data$data,
+    model,
+    xtest_idx = food_demand_data$test_idx,
+    min_ts = unique(food_demand_data$min_ts),
+    type = c(
+      "simple_avg",
+      "simple_avg_n",
+      "dist_avg_n",
+      "dist_avg",
+      "global_avg",
+      "perf_avg",
+      "perf_avg_r"
+    ),
+    c(1, 5, 10, 20),
+    test_multistep = FALSE,
+    parallel = 4,
+    benchmark = "model"
+  )
+
