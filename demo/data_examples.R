@@ -2,11 +2,21 @@ library(doParallel)
 library(tidyverse)
 library(TSAvg)
 
-error_measures <- function(a,f){
+error_measures <- function(a,f,rw_train_error=NULL){
+
+  if (is.null(rw_train_error)){
+    scalings <- sapply(seq_along(a), function(i) sqrt(mean( (a[1:i]-lag(a[1:i]))^2, na.rm=TRUE)))
+    rmsse <- sqrt(mean( ((a-f)/scalings)^2, na.rm=TRUE))
+  }
+  else {
+    rmsse <- sqrt(mean( ((a-f)/rw_train_error)^2, na.rm=TRUE))
+  }
+
   return(c(
-    smape = 2 * mean(abs(a - f) / (abs(a) + abs(f))),
-    mae = mean(abs(a - f)),
-    rmse = sqrt(mean((a - f) ^ 2))
+    smape = 2 * mean(abs(a - f) / (abs(a) + abs(f)), na.rm=TRUE),
+    mae = mean(abs(a - f), na.rm=TRUE),
+    rmse = sqrt(mean((a - f) ^ 2, na.rm=TRUE)),
+    rmsse = rmsse
   ))
 }
 
@@ -45,7 +55,7 @@ datasets <- sapply(m3_type, function(t) {
     ), collapse = "-")))
   }))
 
-  tibble(data,test_idx,min_ts=round(0.8*length(all_dates)))
+  tibble(id = 1:length(data), data,test_idx,min_ts=round(0.8*min(test_idx)))
 
 }, simplify=FALSE)
 
@@ -78,7 +88,7 @@ test_idx <- unlist(lapply(tourism, function(ts) {
   ), collapse = "-")))
 }))
 
-datasets <- c(datasets, list(TOURISM = tibble(data, test_idx, min_ts=0.8*length(all_dates))))
+datasets <- c(datasets, list(TOURISM = tibble(id=1:length(data),data, test_idx, min_ts=round(0.8*min(test_idx)))))
 
 # CIF 2016
 data("cif2016")
@@ -91,7 +101,8 @@ cif2016_processed <- cif2016[[1]] %>%
   reframe(data=list(cbind((max_length[1]-length(series_value)+1):max_length[1], series_value)), # the ts end at the same time?
             test_idx=max_length[1]-as.numeric(horizon)+1,
           min_ts=round(0.8*max_length[1])) %>%
-  distinct()
+  distinct() %>%
+  rename(id=series_name)
 
 datasets <- c(datasets, list(CIF2016 = cif2016_processed))
 
@@ -100,7 +111,8 @@ datasets <- c(datasets, list(CIF2016 = cif2016_processed))
 
 hospital <- tibble(data=apply(expsmooth::hospital,2,function(col)cbind(1:nrow(expsmooth::hospital),col,deparse.level = 0),simplify=FALSE),
                    test_idx = 73,
-                   min_ts = round(0.8*73))
+                   min_ts = round(0.8*73)) %>%
+  mutate(id=1:length(data), .before=data)
 
 datasets <- c(datasets, list(HOSPITAL = hospital))
 
@@ -111,7 +123,8 @@ food_demand_data <- food_demand %>%
   group_by(fridge_id) %>%
   summarise(data=list(cbind(index,sold)),
             min_ts=27,
-            test_idx=81)
+            test_idx=81) %>%
+  rename(id=fridge_id)
 
 datasets <- c(datasets, list(FOOD_DEMAND = food_demand_data))
 
@@ -136,6 +149,8 @@ nr_cores <- 4
 result <- list()
 i <- 1
 for (ds in datasets) {
+  lambda <- NULL
+  #lambda <- if (min(unlist(lapply(ds$data,function(d)min(d[,2]))))>0) 0 # need to run this again with log trafos if applicable!!!
   job::job({
     res_cv  <-
       ts_avg.cv(
@@ -147,7 +162,8 @@ for (ds in datasets) {
         c(1, 5, 10, 20),
         test_multistep = FALSE,
         parallel = nr_cores,
-        benchmark = "model"
+        benchmark = "model",
+        lambda = lambda
       )
 
     best_result_onestep <- lapply(types, function(t) {
@@ -190,18 +206,18 @@ for (ds in datasets) {
 
     eval_onestep <- ds %>%
       ungroup() %>%
-      mutate(tsavg = lapply(final_model_onestep$forecasts, function(f)
+      mutate(tsavg = lapply(final_model_onestep$forecasts, function(f) # change back to final_model_onestep
         f[-dim(f)[1], 1, 2])) %>%
       rowwise() %>%
       mutate(ets = list({
         sapply(test_idx:max(data[, 1]), function(ind) {
-          m_ets <- forecast::ets(data[data[, 1] < ind, 2])
+          m_ets <- forecast::ets(data[data[, 1] < ind, 2], lambda=lambda)
           as.numeric(forecast::forecast(m_ets, h = 1)$mean)
         })
       }),
       arima = list({
         sapply(test_idx:max(data[, 1]), function(ind) {
-          m_arima <- forecast::auto.arima(data[data[, 1] < ind, 2])
+          m_arima <- forecast::auto.arima(data[data[, 1] < ind, 2], lambda = lambda)
           as.numeric(forecast::forecast(m_arima, h = 1)$mean)
         })
       })) %>%
@@ -212,12 +228,13 @@ for (ds in datasets) {
 
     saveRDS(
       list(
+        #res_onestep = res_cv,
         res_multistep = res_cv,
         res_onestep = final_model_onestep,
         eval_multistep = eval_multistep,
         eval_onestep = eval_onestep
       ),
-      file = sprintf("./%s.rds", names(datasets)[i])
+      file = sprintf("./test_%s.rds", names(datasets)[i])
     )
 
     job::export("none")
@@ -231,7 +248,7 @@ for (ds in datasets) {
 
 
 # ids <- c(3,14,25,27)
-#
+
 res_cv  <-
   ts_avg.cv(
     food_demand_data$data,
@@ -249,7 +266,9 @@ res_cv  <-
     ),
     c(1, 5, 10, 20),
     test_multistep = FALSE,
-    parallel = 4,
-    benchmark = "model"
+    parallel = FALSE,
+    benchmark = "model",
+    lambda=0
   )
+
 
