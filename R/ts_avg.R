@@ -75,12 +75,15 @@ ts_avg <- function(x,
 
   neighbors <- dtw_neighbors(xtrain, k)
 
-  result <- list()
+  result_fc <- list()
+  result_fitted <- list()
 
   for (i in seq_along(x)) {
     if (test_multistep == FALSE) {
       result_i <-
         array(dim = c(length(test_idx[[i]]) + 1, h, ncol(xtrain[[i]])))
+
+      fitted_i <- array(dim = c(nrow(xtrain[[i]]), ncol(xtrain[[i]])))
       ndata <- lapply(neighbors, '[[', i)
       if (k[i] > 0 & any(!is.infinite(ndata$dists))) {
         ndata$data <- neighbors$data[c(i, ndata$neighbors)]
@@ -98,11 +101,14 @@ ts_avg <- function(x,
                  ndata)
       }
       else {
-        tmp_res <- model_list$forecast(models[[i]], h = h)
+        tmp_res <- list(forecasts=model_list$forecast(models[[i]], h = h),
+                        fitted_values=model_list$fitted(models[[i]], h = h))
       }
 
+      fitted_i <- tmp_res$fitted_values
+
       result_i[1, , ] <-
-        cbind(max(xtrain[[i]][, 1]) + (1:h), tmp_res)
+        cbind(max(xtrain[[i]][, 1]) + (1:h), tmp_res$forecasts)
 
       if (!is.null(xtest_idx)) {
         for (j in seq_along(test_idx[[i]])) {
@@ -135,10 +141,10 @@ ts_avg <- function(x,
             )
           }
           else {
-            tmp_res <- model_list$forecast(model_list$refit(models[[i]], x2[[1]][, -1]), h = h)
+            tmp_res <- list(forecasts=model_list$forecast(model_list$refit(models[[i]], x2[[1]][, -1]), h = h))
           }
           result_i[j + 1, , ] <-
-            cbind(max(x2[[1]][, 1]) + (1:h), tmp_res)
+            cbind(max(x2[[1]][, 1]) + (1:h), tmp_res$forecasts)
         }
       }
     }
@@ -164,25 +170,26 @@ ts_avg <- function(x,
 
       }
       else {
-        tmp_res <- model_list$forecast(models[[i]], h = h_i)
+        tmp_res <- list(forecasts=model_list$forecast(models[[i]], h = h_i))
       }
 
-      result_i[1, , ] <- cbind(max(xtrain[[i]][, 1]) + (1:h_i), tmp_res)
+      result_i[1, , ] <- cbind(max(xtrain[[i]][, 1]) + (1:h_i), tmp_res$forecasts)
     }
-    result <- c(result, list(result_i))
+    result_fc <- c(result_fc, list(result_i))
+    result_fitted <- c(result_fitted, list(fitted_i))
   }
 
   if (is.null(xtest_idx)){
     #result <- lapply(result, "[",1,TRUE,TRUE)
-    result <- lapply(result, function(r){
+    result_fc <- lapply(result_fc, function(r){
       matrix(r[1, , ],ncol=dim(r)[3])
     })
     cum_test_errors <- test_errors <- NULL
   }
   else {
     agg_dim <- ifelse(test_multistep, 1, 2)
-    cum_test_errors <- sapply(seq_along(result), function(i) {
-      apply(result[[i]], agg_dim, function(r) {
+    cum_test_errors <- sapply(seq_along(result_fc), function(i) {
+      apply(result_fc[[i]], agg_dim, function(r) {
         ind <- intersect(r[,1], xtest[[i]][,1])
         if (length(ind) == 0) return(NA)
         scaling <- if (benchmark == "rw")
@@ -195,8 +202,8 @@ ts_avg <- function(x,
       })
     }, simplify=FALSE)
 
-    test_errors <- sapply(seq_along(result), function(i) {
-      apply(result[[i]], agg_dim, function(r) {
+    test_errors <- sapply(seq_along(result_fc), function(i) {
+      apply(result_fc[[i]], agg_dim, function(r) {
         ind <- intersect(r[,1], xtest[[i]][,1])
         if (length(ind) == 0) return(NA)
         scaling <- if (benchmark == "rw")
@@ -217,7 +224,8 @@ ts_avg <- function(x,
   res <- list(data = x,
               type = type,
               k=k,
-              forecasts = result,
+              forecasts = result_fc,
+              fitted = result_fitted,
               h=h,
               test_multistep=test_multistep,
               xtest_idx=xtest_idx,
