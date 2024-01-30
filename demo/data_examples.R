@@ -55,7 +55,7 @@ datasets <- sapply(m3_type, function(t) {
     ), collapse = "-")))
   }))
 
-  tibble(id = 1:length(data), data,test_idx,min_ts=round(0.8*min(test_idx)))
+  tibble(id = 1:length(data), data,test_idx,min_ts=round(0.8*min(test_idx)), max_input = round(1.25*max(max(unlist(lapply(d,function(ts)ts$h))),12)))
 
 }, simplify=FALSE)
 
@@ -88,7 +88,7 @@ test_idx <- unlist(lapply(tourism, function(ts) {
   ), collapse = "-")))
 }))
 
-datasets <- c(datasets, list(TOURISM = tibble(id=1:length(data),data, test_idx, min_ts=round(0.8*min(test_idx)))))
+datasets <- c(datasets, list(TOURISM = tibble(id=1:length(data),data, test_idx, min_ts=round(0.8*min(test_idx)),max_input = round(1.25*max(max(unlist(lapply(tourism,function(ts)ts$h))),12)))))
 
 # CIF 2016
 data("cif2016")
@@ -100,7 +100,8 @@ cif2016_processed <- cif2016[[1]] %>%
   group_by(series_name) %>%
   reframe(data=list(cbind((max_length[1]-length(series_value)+1):max_length[1], series_value)), # the ts end at the same time?
             test_idx=max_length[1]-as.numeric(horizon)+1,
-          min_ts=round(0.8*max_length[1])) %>%
+          min_ts=round(0.8*max_length[1]),
+          max_input = round(1.25*max(as.numeric(horizon),12))) %>%
   distinct() %>%
   rename(id=series_name)
 
@@ -111,7 +112,8 @@ datasets <- c(datasets, list(CIF2016 = cif2016_processed))
 
 hospital <- tibble(data=apply(expsmooth::hospital,2,function(col)cbind(1:nrow(expsmooth::hospital),col,deparse.level = 0),simplify=FALSE),
                    test_idx = 73,
-                   min_ts = round(0.8*73)) %>%
+                   min_ts = round(0.8*73),
+                   max_input = round(1.25*12)) %>%
   mutate(id=1:length(data), .before=data)
 
 datasets <- c(datasets, list(HOSPITAL = hospital))
@@ -123,7 +125,8 @@ food_demand_data <- food_demand %>%
   group_by(fridge_id) %>%
   summarise(data=list(cbind(index,sold)),
             min_ts=27,
-            test_idx=81) %>%
+            test_idx=81,
+            max_input = 5) %>%
   rename(id=fridge_id)
 
 datasets <- c(datasets, list(FOOD_DEMAND = food_demand_data))
