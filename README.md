@@ -2,10 +2,26 @@
 
 [![Licence](https://img.shields.io/badge/licence-GPL--3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
-This R package features the essential functions from [Neubauer and Filzmoser (2023)](<https://arxiv.org/abs/2306.07119>). Exported functions are
+This R package features the essential functions from [Neubauer and Filzmoser (2023)](<https://doi.org/10.1016/j.ijforecast.2024.02.002>). Exported functions are
 
 -   `ts_avg`: performs TS Averaging for forecasting
 -   `ts_avg.cv`: performs TSCV for selecting the optimal number of neighbors per time series, and yields the best models.
+
+## Citation
+
+```s
+@article{NEUBAUER2024,
+  title = {Improving forecasts for heterogeneous time series by “averaging”, with application to food demand forecasts},
+  journal = {International Journal of Forecasting},
+  year = {2024},
+  issn = {0169-2070},
+  doi = {https://doi.org/10.1016/j.ijforecast.2024.02.002},
+  url = {https://www.sciencedirect.com/science/article/pii/S0169207024000074},
+  author = {Lukas Neubauer and Peter Filzmoser},
+  keywords = {Time series, Forecasting, Combining forecasts, Dynamic time warping, -nearest neighbors},
+  abstract = {A common forecasting setting in real-world applications considers a set of possibly heterogeneous time series of the same domain. Due to the different properties of each time series, such as length, obtaining forecasts for each individual time series in a straightforward way is challenging. This paper proposes a general framework utilizing a similarity measure in dynamic time warping to find similar time series to build neighborhoods in a k-nearest neighbor fashion and improve forecasts of possibly simple models by averaging. Several ways of performing the averaging are suggested, and theoretical arguments underline the usefulness of averaging for forecasting. Additionally, diagnostic tools are proposed for a deep understanding of the procedure.}
+}
+```
 
 ## Installation
 
