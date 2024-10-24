@@ -18,7 +18,7 @@ This R package features the essential functions from [Neubauer and Filzmoser (20
   doi = {https://doi.org/10.1016/j.ijforecast.2024.02.002},
   url = {https://www.sciencedirect.com/science/article/pii/S0169207024000074},
   author = {Lukas Neubauer and Peter Filzmoser},
-  keywords = {Time series, Forecasting, Combining forecasts, Dynamic time warping, -nearest neighbors},
+  keywords = {Time series, Forecasting, Combining forecasts, Dynamic time warping, k-nearest neighbors},
   abstract = {A common forecasting setting in real-world applications considers a set of possibly heterogeneous time series of the same domain. Due to the different properties of each time series, such as length, obtaining forecasts for each individual time series in a straightforward way is challenging. This paper proposes a general framework utilizing a similarity measure in dynamic time warping to find similar time series to build neighborhoods in a k-nearest neighbor fashion and improve forecasts of possibly simple models by averaging. Several ways of performing the averaging are suggested, and theoretical arguments underline the usefulness of averaging for forecasting. Additionally, diagnostic tools are proposed for a deep understanding of the procedure.}
 }
 ```

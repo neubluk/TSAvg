@@ -1,0 +1,22 @@
+bibentry(
+  bibtype  = "Manual",
+  title    = "{TSAvg}: Time Series Averaging",
+  author   = person("Lukas","Neubauer"),
+  year     = "2023",
+  note = "R package version 0.2.0",
+  url = "https://github.com/neubluk/TSAvg",
+  textVersion = "Neubauer L (2023). TSAvg: Time Series Averaging. R package version 0.2.0, <https://github.com/neubluk/TSAvg>."
+)
+
+bibentry(
+  bibtype = "Article",
+  title = "Improving forecasts for heterogeneous time series by “averaging”, with application to food demand forecasts",
+  author   = c(person("Lukas","Neubauer"), person("Peter","Filzmoser")),
+  year     = "2023",
+  journal = "International Journal of Forecasting",
+  doi = "https://doi.org/10.1016/j.ijforecast.2024.02.002",
+  header = "To cite the article in publications use:",
+  textVersion = "Neubauer L, Filzmoser P (2023). “Improving forecasts for heterogeneous time series by “averaging”, with application to food demand
+  forecasts.” International Journal of Forecasting. doi:10.1016/j.ijforecast.2024.02.002
+  <https://doi.org/10.1016/j.ijforecast.2024.02.002>."
+)
